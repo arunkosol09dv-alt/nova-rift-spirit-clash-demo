@@ -1,0 +1,1243 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>NOVA RIFT — TikTok LIVE Interactive Game Review Demo V1</title>
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;width:100%;height:100%;background:#02040c;overflow:hidden;font-family:Arial,Tahoma,sans-serif}
+#stage{position:relative;width:100vw;height:100vh;display:flex;align-items:center;justify-content:center;background:#02040c}
+#master{display:block;max-width:100vw;max-height:100vh;width:auto;height:auto;object-fit:contain}
+#videoLayer{position:absolute;inset:0;background:#000;display:none;align-items:center;justify-content:center;z-index:20}
+#p1video{width:100%;height:100%;object-fit:contain;background:#000}
+#flash{position:absolute;inset:0;background:white;opacity:0;pointer-events:none;z-index:30}
+#flash.on{animation:flash .42s ease-out}
+@keyframes flash{0%{opacity:0}25%{opacity:.85}100%{opacity:0}}
+#announce{position:absolute;left:50%;top:9%;transform:translateX(-50%) scale(.7);z-index:35;
+opacity:0;color:#fff7c4;font-weight:1000;font-size:clamp(18px,4vw,46px);white-space:nowrap;
+text-shadow:0 0 8px #fff,0 0 20px #ffd23f,0 0 45px #ff8a00}
+#announce.on{animation:announce 1.4s ease-out}
+@keyframes announce{0%{opacity:0;transform:translateX(-50%) scale(.6)}18%{opacity:1;transform:translateX(-50%) scale(1.15)}75%{opacity:1;transform:translateX(-50%) scale(1)}100%{opacity:0}}
+#test{position:absolute;right:2.5%;bottom:14%;z-index:55;border:1px solid #ffd75c;border-radius:14px;
+background:#130b20e8;color:#fff;padding:12px 16px;font-weight:900;cursor:pointer;box-shadow:0 0 22px #ffb30088}
+#hint{position:absolute;left:50%;bottom:2.2%;transform:translateX(-50%);z-index:10;color:#fff;font-size:12px;
+background:#05091dcc;border:1px solid #ffffff44;border-radius:999px;padding:7px 12px}
+</style>
+</head>
+<body>
+<div id="stage">
+<!-- TIKTOK REVIEW DEMO V1 — review-only overlay; core game logic below is unchanged -->
+<style>
+#reviewDemoBadge{
+ position:absolute;left:50%;top:1.2%;transform:translateX(-50%);
+ z-index:850;background:#030711e8;border:1px solid #4fe1ff88;
+ border-radius:999px;padding:6px 12px;color:#fff;font-size:11px;
+ font-weight:900;letter-spacing:.3px;pointer-events:none;white-space:nowrap
+}
+#reviewGuide{
+ position:absolute;right:2%;top:8%;z-index:840;width:min(300px,31vw);
+ background:#050914ed;border:1px solid #4fe1ff66;border-radius:14px;
+ padding:10px;color:#fff;font-size:11px;line-height:1.45;
+ box-shadow:0 0 24px #00c8ff22
+}
+#reviewGuide b{color:#7eeaff}
+#reviewGuide .rgTitle{font-size:13px;font-weight:1000;margin-bottom:5px}
+#reviewGuide .rgNote{opacity:.72;margin-top:6px;font-size:10px}
+#reviewGuide button{
+ margin-top:7px;border:1px solid #ffffff35;border-radius:9px;
+ background:#ffffff12;color:#fff;padding:5px 8px;font-weight:900;cursor:pointer
+}
+</style>
+<div id="reviewDemoBadge">NOVA RIFT — TIKTOK LIVE INTERACTIVE GAME • REVIEW DEMO</div>
+<div id="reviewGuide">
+ <div class="rgTitle">Reviewer Demo Flow</div>
+ <div><b>1.</b> Open TEAM TEST and join P1–P5 with a username.</div>
+ <div><b>2.</b> Send LIKE to add +1 to the locked team.</div>
+ <div><b>3.</b> Send GIFT +10 / +50 / +200 to change team score.</div>
+ <div><b>4.</b> START a timed round and observe live ranking / summon effects.</div>
+ <div><b>5.</b> END the round to show Winner + MVP, then NEXT ROUND.</div>
+ <div class="rgNote">Prototype simulation only. TikTok LIVE event/API integration is not represented as completed in this build.</div>
+ <button id="hideReviewGuide" type="button">HIDE GUIDE</button>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded',function(){
+ const b=document.getElementById('hideReviewGuide');
+ if(b)b.addEventListener('click',function(){
+   const g=document.getElementById('reviewGuide');
+   if(g)g.style.display='none';
+ });
+});
+</script>
+
+  <img id="master" src="assets/images/image_01.png" alt="NOVA RIFT MASTER">
+  <div id="hint">P1 TEST • กดปุ่มเพื่อจำลองผู้เล่นขึ้นอันดับ 1</div>
+  <button id="test">👑 จำลอง P1 ขึ้นอันดับ 1</button>
+
+  <div id="videoLayer">
+    <video id="p1video" playsinline preload="auto">
+      <source src="assets/video/video_01.mp4" type="video/mp4">
+    </video>
+  </div>
+  <div id="flash"></div>
+  <div id="announce">👑 P1 SPIRIT KING — SUMMON!</div>
+</div>
+<script>
+const btn=document.getElementById('test');
+const layer=document.getElementById('videoLayer');
+const v=document.getElementById('p1video');
+const flash=document.getElementById('flash');
+const ann=document.getElementById('announce');
+let playing=false;
+let p1Score = 125430;
+const p1ScoreStart = p1Score;
+let p1Rank = 1;
+let p1Wins =  0;
+let p1Streak = 0;
+let p1Level = 1;
+let p1Power = 100;
+let p1Exp = 0;
+let p1Gift = 0;
+let p1Likes = 0;
+let p1Shares = 0;
+let p1Follows = 0;
+let p1Combo = 0;
+let p1Damage = 0;
+let p1Boost = 1;
+let p1LastAction = "";
+let p1LastGift = "";
+let p1TotalActions = 0;
+let p1MvpPoints = 0;
+let p1MvpRank = 0;
+let p1RoundScore = 0;
+let p1RoundLikes = 0;
+let p1RoundGift = 0;
+let p1RoundActions = 0;
+let p1RoundMvpPoints = 0;
+let p1BestScore = 0;
+let p1BestStreak = 0;
+let p1BestCombo = 0;
+let p1TotalRounds = 0;
+let p1TotalWins = 0;
+let p1IsChampion = false;
+let p1IsMvp = false;
+let p1LastActionAt = 0;
+let p1LastGiftAt = 0;
+let p1Shield = 0;
+let p1Speed = 1;
+let p1ShieldMax = 100;
+let p1SpeedBase = 1;
+function resetP1RoundStats(){
+  p1RoundScore = 0;
+  p1RoundLikes = 0;
+  p1RoundGift = 0;
+  p1RoundActions = 0;
+  p1RoundMvpPoints = 0;
+  p1IsMvp = false;
+  p1LastActionAt = 0;
+  p1LastGiftAt = 0;
+  p1Combo = 0;
+  p1Streak = 0;
+  p1Boost = 1;
+  p1Damage = 0;
+  p1Shield = p1ShieldMax;
+  p1Speed = p1SpeedBase;
+}
+
+function summonP1(){
+
+  if(playing) return;
+  
+  playing=true;
+  btn.style.display='none';
+  document.getElementById('hint').style.display='none';
+  flash.classList.remove('on'); ann.classList.remove('on');
+  void flash.offsetWidth;
+  flash.classList.add('on'); ann.classList.add('on');
+  setTimeout(()=>{
+    layer.style.display='flex';
+    v.currentTime=0;
+    v.volume=1;
+    v.play().catch(()=>{ v.muted=true; v.play(); });
+    v.muted=false;
+  },260);
+}
+function finish(){
+  p1TotalRounds++;
+  p1IsChampion = p1RoundScore > p1BestScore;
+  if(p1IsChampion) p1TotalWins++;
+  p1BestScore = Math.max(p1BestScore, p1RoundScore);
+  p1IsMvp = p1RoundMvpPoints > 0;
+  p1MvpRank = p1IsMvp ? 1 : 0;
+  p1BestCombo = Math.max(p1BestCombo, p1Combo);
+  p1BestStreak = Math.max(p1BestStreak, p1Streak);
+  p1LastAction = 'finish';
+  p1LastActionAt = Date.now();
+  p1LastGiftAt = 0;
+  p1Combo = 0;
+  p1Streak = 0;
+  layer.style.display='none';
+  v.pause(); v.currentTime=0;
+  flash.classList.remove('on'); void flash.offsetWidth; flash.classList.add('on');
+  setTimeout(()=>{
+    btn.style.display='block';
+    document.getElementById('hint').style.display='block';
+    playing=false;
+  },350);
+}
+btn.addEventListener('click',summonP1);
+v.addEventListener('ended',finish);
+document.addEventListener('keydown',e=>{if(e.code==='Space') summonP1();});
+</script>
+
+<!-- P2 TEST ADD-ON: P1 original code remains unchanged -->
+<style>
+#testP2{position:absolute;left:2.5%;bottom:2%;z-index:51;border:1px solid #8deaff;border-radius:14px;
+background:#071a2ee8;color:#fff;padding:12px 16px;font-weight:900;cursor:pointer;box-shadow:0 0 22px #38cfff88}
+#p2Layer{position:absolute;inset:0;background:#000;display:none;align-items:center;justify-content:center;z-index:60}
+#p2video{width:100%;height:100%;object-fit:contain;background:#000}
+#p2announce{position:absolute;left:50%;top:9%;transform:translateX(-50%) scale(.7);z-index:75;
+opacity:0;color:#dffaff;font-weight:1000;font-size:clamp(18px,4vw,46px);white-space:nowrap;
+text-shadow:0 0 8px #fff,0 0 20px #40d9ff,0 0 45px #147cff}
+#p2announce.on{animation:p2announce 1.4s ease-out}
+@keyframes p2announce{0%{opacity:0;transform:translateX(-50%) scale(.6)}18%{opacity:1;transform:translateX(-50%) scale(1.15)}75%{opacity:1;transform:translateX(-50%) scale(1)}100%{opacity:0}}
+</style>
+<button id="testP2">❄️ จำลอง P2 ขึ้นอันดับ 1</button>
+<div id="p2Layer">
+  <video id="p2video" playsinline preload="auto">
+    <source src="assets/video/video_02.mp4" type="video/mp4">
+  </video>
+</div>
+<div id="p2announce">❄️ P2 ICE WARRIOR — SUMMON!</div>
+<script>
+(function(){
+ const b=document.getElementById('testP2'), l=document.getElementById('p2Layer'),
+       v=document.getElementById('p2video'), a=document.getElementById('p2announce');
+ let busy=false;
+ function playP2(){
+   if(busy) return; busy=true;
+   b.style.display='none';
+   a.classList.remove('on'); void a.offsetWidth; a.classList.add('on');
+   setTimeout(function(){
+     l.style.display='flex'; v.currentTime=0; v.volume=1;
+     v.play().catch(function(){v.muted=true;v.play();});
+   },260);
+ }
+ function done(){
+   l.style.display='none'; v.pause(); v.currentTime=0;
+   setTimeout(function(){b.style.display='block';busy=false;},350);
+ }
+ b.addEventListener('click',playP2);
+ v.addEventListener('ended',done);
+})();
+</script>
+
+
+<!-- P3 TEST ADD-ON: APPROVED P1 + P2 remain unchanged -->
+<style>
+#testP3{position:absolute;left:50%;bottom:2%;transform:translateX(-50%);z-index:52;border:1px solid #ff7043;border-radius:14px;
+background:#2a0808e8;color:#fff;padding:12px 16px;font-weight:900;cursor:pointer;box-shadow:0 0 22px #ff3d0088}
+#p3Layer{position:absolute;inset:0;background:#000;display:none;align-items:center;justify-content:center;z-index:80}
+#p3video{width:100%;height:100%;object-fit:contain;background:#000}
+#p3announce{position:absolute;left:50%;top:9%;transform:translateX(-50%) scale(.7);z-index:95;
+opacity:0;color:#fff1d0;font-weight:1000;font-size:clamp(18px,4vw,46px);white-space:nowrap;
+text-shadow:0 0 8px #fff,0 0 20px #ff6a00,0 0 45px #ff1600}
+#p3announce.on{animation:p3announce 1.4s ease-out}
+@keyframes p3announce{0%{opacity:0;transform:translateX(-50%) scale(.6)}18%{opacity:1;transform:translateX(-50%) scale(1.15)}75%{opacity:1;transform:translateX(-50%) scale(1)}100%{opacity:0}}
+</style>
+<button id="testP3">🔥 จำลอง P3 ขึ้นอันดับ 1</button>
+<div id="p3Layer">
+  <video id="p3video" playsinline preload="auto">
+    <source src="assets/video/video_03.mp4" type="video/mp4">
+  </video>
+</div>
+<div id="p3announce">🔥 P3 FIRE DRAGON — SUMMON!</div>
+<script>
+(function(){
+ const b=document.getElementById('testP3'), l=document.getElementById('p3Layer'),
+       v=document.getElementById('p3video'), a=document.getElementById('p3announce');
+ let busy=false;
+ function playP3(){
+   if(busy) return; busy=true;
+   b.style.display='none';
+   a.classList.remove('on'); void a.offsetWidth; a.classList.add('on');
+   setTimeout(function(){
+     l.style.display='flex'; v.currentTime=0; v.volume=1;
+     v.play().catch(function(){v.muted=true;v.play();});
+   },260);
+ }
+ function done(){
+   l.style.display='none'; v.pause(); v.currentTime=0;
+   setTimeout(function(){b.style.display='block';busy=false;},350);
+ }
+ b.addEventListener('click',playP3);
+ v.addEventListener('ended',done);
+})();
+</script>
+
+
+<!-- P4 TEST ADD-ON: APPROVED P1 + P2 + P3 remain unchanged -->
+<style>
+#testP4{position:absolute;right:2.5%;bottom:2%;z-index:53;border:1px solid #d37cff;border-radius:14px;
+background:#21052fe8;color:#fff;padding:12px 16px;font-weight:900;cursor:pointer;box-shadow:0 0 22px #b000ff99}
+#p4Layer{position:absolute;inset:0;background:#000;display:none;align-items:center;justify-content:center;z-index:100}
+#p4video{width:100%;height:100%;object-fit:contain;background:#000}
+#p4announce{position:absolute;left:50%;top:9%;transform:translateX(-50%) scale(.7);z-index:115;
+opacity:0;color:#f3dcff;font-weight:1000;font-size:clamp(18px,4vw,46px);white-space:nowrap;
+text-shadow:0 0 8px #fff,0 0 20px #bd4cff,0 0 45px #6500b8}
+#p4announce.on{animation:p4announce 1.4s ease-out}
+@keyframes p4announce{0%{opacity:0;transform:translateX(-50%) scale(.6)}18%{opacity:1;transform:translateX(-50%) scale(1.15)}75%{opacity:1;transform:translateX(-50%) scale(1)}100%{opacity:0}}
+</style>
+<button id="testP4">🐺 จำลอง P4 ขึ้นอันดับ 1</button>
+<div id="p4Layer">
+  <video id="p4video" playsinline preload="auto">
+    <source src="assets/video/video_04.mp4" type="video/mp4">
+  </video>
+</div>
+<div id="p4announce">🐺 P4 MOON WOLF — SUMMON!</div>
+<script>
+(function(){
+ const b=document.getElementById('testP4'), l=document.getElementById('p4Layer'),
+       v=document.getElementById('p4video'), a=document.getElementById('p4announce');
+ let busy=false;
+ function playP4(){
+   if(busy) return; busy=true;
+   b.style.display='none';
+   a.classList.remove('on'); void a.offsetWidth; a.classList.add('on');
+   setTimeout(function(){
+     l.style.display='flex'; v.currentTime=0; v.volume=1;
+     v.play().catch(function(){v.muted=true;v.play();});
+   },260);
+ }
+ function done(){
+   l.style.display='none'; v.pause(); v.currentTime=0;
+   setTimeout(function(){b.style.display='block';busy=false;},350);
+ }
+ b.addEventListener('click',playP4);
+ v.addEventListener('ended',done);
+})();
+</script>
+
+
+<!-- P5 TEST ADD-ON: P1-P4 remain unchanged -->
+<style>
+#testP5{position:absolute;right:2.5%;bottom:8%;z-index:54;border:1px solid #66ffb0;border-radius:14px;
+background:#05291be8;color:#fff;padding:12px 16px;font-weight:900;cursor:pointer;box-shadow:0 0 22px #00ff8899}
+#p5Layer{position:absolute;inset:0;background:#000;display:none;align-items:center;justify-content:center;z-index:120}
+#p5video{width:100%;height:100%;object-fit:contain;background:#000}
+#p5announce{position:absolute;left:50%;top:9%;transform:translateX(-50%) scale(.7);z-index:135;
+opacity:0;color:#eafff3;font-weight:1000;font-size:clamp(18px,4vw,46px);white-space:nowrap;
+text-shadow:0 0 8px #fff,0 0 20px #28ff9a,0 0 45px #00a85a}
+#p5announce.on{animation:p5announce 1.4s ease-out}
+@keyframes p5announce{0%{opacity:0;transform:translateX(-50%) scale(.6)}18%{opacity:1;transform:translateX(-50%) scale(1.15)}75%{opacity:1;transform:translateX(-50%) scale(1)}100%{opacity:0}}
+</style>
+<button id="testP5">🟢 จำลอง P5 ขึ้นอันดับ 1</button>
+<div id="p5Layer">
+  <video id="p5video" playsinline preload="auto">
+    <source src="assets/video/video_05.mp4" type="video/mp4">
+  </video>
+</div>
+<div id="p5announce">🟢 P5 JADE QILIN — SUMMON!</div>
+<script>
+(function(){
+ const b=document.getElementById('testP5'), l=document.getElementById('p5Layer'),
+       v=document.getElementById('p5video'), a=document.getElementById('p5announce');
+ let busy=false;
+ function playP5(){
+   if(busy) return; busy=true;
+   b.style.display='none';
+   a.classList.remove('on'); void a.offsetWidth; a.classList.add('on');
+   setTimeout(function(){
+     l.style.display='flex'; v.currentTime=0; v.volume=1;
+     v.play().catch(function(){v.muted=true;v.play();});
+   },260);
+ }
+ function done(){
+   l.style.display='none'; v.pause(); v.currentTime=0;
+   setTimeout(function(){b.style.display='block';busy=false;},350);
+ }
+ b.addEventListener('click',playP5);
+ v.addEventListener('ended',done);
+})();
+</script>
+
+
+<!-- 5 TEAM LIKE TEST V0.1 : MASTER P1-P5 UNCHANGED -->
+<style>
+#teamTestBtn{position:absolute;left:2.5%;top:2%;z-index:180;border:1px solid #fff7;border-radius:14px;background:#07101de8;color:white;padding:10px 14px;font-weight:900;cursor:pointer}
+#teamPanel{position:absolute;inset:5% 3%;z-index:175;background:linear-gradient(180deg,#07101df4,#02050bf7);border:1px solid #ffffff2b;border-radius:20px;padding:14px;display:none;overflow:auto;color:#fff;box-shadow:0 0 35px #000}
+#teamPanel h2{margin:0 0 6px;text-align:center;font-size:22px}
+#teamPanel .sub{text-align:center;opacity:.75;font-size:12px;margin-bottom:10px}
+.teamrow{display:grid;grid-template-columns:42px 1fr 84px 70px;gap:8px;align-items:center;padding:9px 8px;margin:7px 0;border-radius:14px;background:#ffffff0d;border:1px solid #ffffff18}
+.rankNo{font-size:22px;font-weight:1000;text-align:center}
+.teamname{font-weight:900;font-size:14px}
+.score{font-weight:1000;text-align:right;font-size:16px}
+.likeBtn{border:0;border-radius:12px;padding:9px 7px;color:#fff;font-weight:1000;cursor:pointer;background:#ffffff18}
+.likeBtn:active{transform:scale(.95)}
+#teamControls{display:flex;gap:8px;justify-content:center;margin-top:10px;flex-wrap:wrap}
+.smallCtl{border:1px solid #ffffff35;border-radius:11px;background:#ffffff12;color:#fff;padding:8px 11px;font-weight:800;cursor:pointer}
+.t1{box-shadow:inset 4px 0 #ffd54a}.t2{box-shadow:inset 4px 0 #49b9ff}.t3{box-shadow:inset 4px 0 #ff4a45}.t4{box-shadow:inset 4px 0 #c05cff}.t5{box-shadow:inset 4px 0 #41e886}
+#leadMsg{text-align:center;min-height:22px;margin-top:8px;font-weight:900;color:#ffeaa0}
+</style>
+
+<button id="teamTestBtn">⚔️ TEST 5 ทีม</button>
+<div id="teamPanel">
+  <h2>⚔️ NOVA RIFT — 5 TEAM LIKE TEST</h2>
+  <div class="sub">กด ❤️ เพื่อจำลอง Like • ทีมที่แซงขึ้นอันดับ 1 จะเรียกคลิปประจำทีมนั้น</div>
+  <div id="teamRows"></div>
+  <div id="leadMsg"></div>
+  <div id="teamControls">
+    <button class="smallCtl" id="resetTeams">↺ รีเซ็ตคะแนน</button>
+    <button class="smallCtl" id="closeTeams">✕ ปิด TEST</button>
+  </div>
+</div>
+
+<script>
+(function(){
+ const teams=[
+  {p:1,name:'ราชันมังกรทอง',icon:'👑',score:0,cls:'t1'},
+  {p:2,name:'จักรพรรดิเหมันต์',icon:'🐘',score:0,cls:'t2'},
+  {p:3,name:'มังกรเพลิง',icon:'🐉',score:0,cls:'t3'},
+  {p:4,name:'หมาป่าจันทรา',icon:'🐺',score:0,cls:'t4'},
+  {p:5,name:'กิเลนหยก',icon:'🦄',score:0,cls:'t5'}
+ ];
+ let leader=null, firstAction=true, locked=false;
+ const panel=document.getElementById('teamPanel'), rows=document.getElementById('teamRows'), msg=document.getElementById('leadMsg');
+
+ function playTeam(p){
+   const btn=document.getElementById(p===1?'test':('testP'+p));
+   if(btn){ btn.click(); return true; }
+   return false;
+ }
+ function render(){
+   const sorted=[...teams].sort((a,b)=>b.score-a.score || a.p-b.p);
+   rows.innerHTML='';
+   sorted.forEach((t,i)=>{
+     const d=document.createElement('div'); d.className='teamrow '+t.cls;
+     d.innerHTML='<div class="rankNo">#'+(i+1)+'</div><div class="teamname">'+t.icon+' '+t.name+' <span style="opacity:.55">P'+t.p+'</span></div><div class="score">'+t.score.toLocaleString()+'</div><button class="likeBtn">❤️ +1</button>';
+     d.querySelector('.likeBtn').onclick=()=>addLike(t.p);
+     rows.appendChild(d);
+   });
+ }
+ function addLike(p){
+   if(locked) return;
+   teams.find(t=>t.p===p).score++;
+   const sorted=[...teams].sort((a,b)=>b.score-a.score || a.p-b.p);
+   const top=sorted[0];
+   render();
+   if(firstAction){ leader=top.p; firstAction=false; msg.textContent=top.icon+' '+top.name+' ขึ้นนำ!'; locked=true; setTimeout(()=>{playTeam(top.p);locked=false;},250); return; }
+   if(top.p!==leader){
+     leader=top.p; msg.textContent='🔥 '+top.name+' แซงขึ้นอันดับ 1!';
+     locked=true; setTimeout(()=>{playTeam(top.p);locked=false;},250);
+   }
+ }
+ window.NovaRiftAddGiftScore = function(p, points){
+  if(locked) return false;
+
+  const team = teams.find(t=>t.p===Number(p));
+  if(!team) return false;
+
+  team.score += Number(points) || 0;
+
+  const sorted=[...teams].sort((a,b)=>b.score-a.score || a.p-b.p);
+  const top=sorted[0];
+
+  render();
+
+  if(firstAction){
+    leader=top.p;
+    firstAction=false;
+    msg.textContent=top.icon+' '+top.name+' ขึ้นนำ!';
+    locked=true;
+    setTimeout(()=>{playTeam(top.p);locked=false;},250);
+    return true;
+  }
+
+  if(top.p!==leader){
+    leader=top.p;
+    msg.textContent='🔥 '+top.name+' แซงขึ้นอันดับ 1!';
+    locked=true;
+    setTimeout(()=>{playTeam(top.p);locked=false;},250);
+  }
+
+  return true;
+};
+ document.getElementById('teamTestBtn').onclick=()=>{panel.style.display='block';render();};
+ document.getElementById('closeTeams').onclick=()=>panel.style.display='none';
+ document.getElementById('resetTeams').onclick=()=>{
+   teams.forEach(t=>t.score=0); leader=null; firstAction=true; locked=false; msg.textContent=''; render();
+ };
+ render();
+})();
+</script>
+
+
+<!-- TEAM JOIN LOCK TEST V0.2 -->
+<style>
+#joinTestBox{position:absolute;left:2%;width:max-content;top:8%;bottom:auto;z-index:190;background:#050a12f2;
+border:1px solid #ffffff35;border-radius:16px;padding:10px;color:#fff;display:block}
+#joinTestBox .title{font-weight:1000;text-align:center;margin-bottom:7px}
+#joinTestBox .joinline{display:flex;gap:6px;justify-content:center;flex-wrap:wrap}
+#joinUser{width:125px;border-radius:9px;border:1px solid #ffffff35;background:#ffffff12;color:#fff;padding:8px}
+.joinNum{width:42px;border:0;border-radius:10px;padding:8px 0;color:#fff;font-weight:1000;cursor:pointer}
+.j1{background:#9a7600}.j2{background:#0872a8}.j3{background:#a82420}.j4{background:#742aa0}.j5{background:#16864a}
+#joinStatus{text-align:center;min-height:19px;margin-top:7px;font-size:12px;font-weight:800}
+#memberSummary{text-align:center;opacity:.75;font-size:11px;margin-top:5px}
+</style>
+
+<div id="joinTestBox">
+ <div class="title">👥 TEST เลือกทีม — พิมพ์ชื่อจำลอง แล้วกด 1–5</div>
+ <div class="joinline">
+   <input id="joinUser" placeholder="@username">
+   <button class="joinNum j1" data-team="1">1</button>
+   <button class="joinNum j2" data-team="2">2</button>
+   <button class="joinNum j3" data-team="3">3</button>
+   <button class="joinNum j4" data-team="4">4</button>
+   <button class="joinNum j5" data-team="5">5</button>
+ </div>
+ <div id="joinStatus">เลือกทีมได้ครั้งเดียวต่อรอบ</div>
+ <div id="memberSummary">สมาชิก: ยังไม่มี</div>
+</div>
+
+<script>
+(function(){
+ const box=document.getElementById('joinTestBox');
+ const panel=document.getElementById('teamPanel');
+ const open=document.getElementById('teamTestBtn');
+ const close=document.getElementById('closeTeams');
+ const reset=document.getElementById('resetTeams');
+ const input=document.getElementById('joinUser');
+ const status=document.getElementById('joinStatus');
+ const summary=document.getElementById('memberSummary');
+ const members={};
+ const names={1:'ราชันมังกรทอง',2:'จักรพรรดิเหมันต์',3:'มังกรเพลิง',4:'หมาป่าจันทรา',5:'กิเลนหยก'};
+
+ function refresh(){
+   const counts={1:0,2:0,3:0,4:0,5:0};
+   Object.values(members).forEach(t=>counts[t]++);
+   summary.textContent='สมาชิก — 1:'+counts[1]+' | 2:'+counts[2]+' | 3:'+counts[3]+' | 4:'+counts[4]+' | 5:'+counts[5];
+ }
+ function join(team){
+   let u=input.value.trim().toLowerCase();
+   if(!u){status.textContent='⚠️ ใส่ username จำลองก่อน'; return;}
+   if(!u.startsWith('@')) u='@'+u;
+   if(members[u]){
+     status.textContent='🔒 '+u+' ถูกล็อกอยู่ทีม '+members[u]+' '+names[members[u]]+' แล้ว — เปลี่ยนทีมไม่ได้';
+     return;
+   }
+   members[u]=team;
+   status.textContent='✅ '+u+' เข้าทีม '+team+' '+names[team]+' แล้ว และล็อกจนจบรอบ';
+   refresh();
+ }
+ document.querySelectorAll('.joinNum').forEach(b=>b.onclick=()=>join(Number(b.dataset.team)));
+ open.addEventListener('click',()=>box.style.display='block');
+ close.addEventListener('click',()=>box.style.display='none');
+ reset.addEventListener('click',()=>{
+   Object.keys(members).forEach(k=>delete members[k]);
+   status.textContent='เริ่มรอบใหม่ — ทุกคนเลือกทีมใหม่ได้';
+   refresh();
+ });
+ refresh();
+})();
+</script>
+
+
+<style>
+#likeUserTest{position:absolute;left:3%;right:3%;bottom:18%;z-index:205;background:#07101df4;border:1px solid #ffffff35;border-radius:16px;padding:10px;color:#fff;display:none}
+#likeUserTest .ttl{text-align:center;font-weight:1000;margin-bottom:7px} #likeUserTest .line{display:flex;gap:7px;justify-content:center;flex-wrap:wrap}
+#likeUsername{width:150px;border-radius:9px;border:1px solid #ffffff35;background:#ffffff12;color:#fff;padding:8px}
+#sendUserLike{border:0;border-radius:11px;background:#d92f64;color:#fff;padding:8px 14px;font-weight:1000;cursor:pointer}
+#likeUserStatus{text-align:center;min-height:20px;margin-top:7px;font-size:12px;font-weight:900}
+</style>
+<div id="likeUserTest"><div class="ttl">❤️ TEST Like ตาม Username</div><div class="line">
+<input id="likeUsername" placeholder="@username ที่เลือกทีมแล้ว"><button id="sendUserLike">❤️ เคาะ +1</button>
+</div><div id="likeUserStatus">ตรวจทีมของ username ก่อนเพิ่มคะแนน</div></div>
+<script>
+(function(){
+ const names={1:'ราชันมังกรทอง',2:'จักรพรรดิเหมันต์',3:'มังกรเพลิง',4:'หมาป่าจันทรา',5:'กิเลนหยก'};
+ const mem={}; function norm(u){u=(u||'').trim().toLowerCase();return u&&!u.startsWith('@')?'@'+u:u;}
+ document.querySelectorAll('.joinNum').forEach(b=>b.addEventListener('click',function(){
+   const u=norm(document.getElementById('joinUser').value),t=Number(this.dataset.team);
+   setTimeout(()=>{const s=document.getElementById('joinStatus').textContent;
+     if(u&&s.includes('เข้าทีม '+t+' ')&&s.includes('ล็อกจนจบรอบ')&&!mem[u]) mem[u]=t;
+   },0);
+ }));
+ const box=document.getElementById('likeUserTest'),st=document.getElementById('likeUserStatus');
+ document.getElementById('teamTestBtn').addEventListener('click',()=>box.style.display='block');
+ document.getElementById('closeTeams').addEventListener('click',()=>box.style.display='none');
+ document.getElementById('resetTeams').addEventListener('click',()=>{Object.keys(mem).forEach(k=>delete mem[k]);st.textContent='เริ่มรอบใหม่ — รายชื่อทีมถูกรีเซ็ตแล้ว';});
+ document.getElementById('sendUserLike').addEventListener('click',()=>{
+   const u=norm(document.getElementById('likeUsername').value); if(!u){st.textContent='⚠️ ใส่ username ก่อน';return;}
+   const t=mem[u]; if(!t){st.textContent='⛔ '+u+' ยังไม่ได้เลือกทีม — Like ไม่นับ';return;}
+   const row=[...document.querySelectorAll('#teamRows .teamrow')].find(r=>r.textContent.includes('P'+t));
+   const btn=row&&row.querySelector('.likeBtn'); if(!btn){st.textContent='⚠️ ไม่พบทีม '+t;return;}
+   btn.click(); st.textContent='❤️ '+u+' +1 → ทีม '+t+' '+names[t];
+ });
+})();
+</script>
+
+
+<!-- V0.4 GIFT TEST: username -> locked team -> gift points -->
+<style>
+#giftTestBox{position:absolute;left:3%;right:3%;bottom:31%;z-index:220;background:#090d18f4;border:1px solid #ffd86b55;border-radius:16px;padding:10px;color:#fff;display:none}
+#giftTestBox .gt{font-weight:1000;text-align:center;margin-bottom:7px}
+#giftTestBox .gl{display:flex;gap:6px;justify-content:center;flex-wrap:wrap}
+#giftUsername{width:145px;border-radius:9px;border:1px solid #ffffff35;background:#ffffff12;color:#fff;padding:8px}
+.giftBtn{border:0;border-radius:11px;padding:8px 10px;color:#fff;font-weight:1000;cursor:pointer}
+.gsmall{background:#72561a}.gmid{background:#9c4b19}.gbig{background:#9c2039}
+#giftStatus{text-align:center;min-height:20px;margin-top:7px;font-size:12px;font-weight:900}
+</style>
+<div id="giftTestBox">
+ <div class="gt">🎁 TEST Gift ตาม Username</div>
+ <div class="gl">
+  <input id="giftUsername" placeholder="@username ที่เลือกทีมแล้ว">
+  <button class="giftBtn gsmall" data-points="10">🎁 เล็ก +10</button>
+  <button class="giftBtn gmid" data-points="50">🎁 กลาง +50</button>
+  <button class="giftBtn gbig" data-points="200">🎁 ใหญ่ +200</button>
+ </div>
+ <div id="giftStatus">Gift จะเข้าทีมที่ username ล็อกไว้</div>
+</div>
+<script>
+(function(){
+ const names={1:'ราชันมังกรทอง',2:'จักรพรรดิเหมันต์',3:'มังกรเพลิง',4:'หมาป่าจันทรา',5:'กิเลนหยก'};
+ const giftMem={};
+ window.NovaRiftGiftMem = giftMem;
+ function norm(u){u=(u||'').trim().toLowerCase();return u&&!u.startsWith('@')?'@'+u:u;}
+
+ // Mirror successful V0.3 team assignment, without changing approved lock behavior.
+ document.querySelectorAll('.joinNum').forEach(b=>b.addEventListener('click',function(){
+   const u=norm(document.getElementById('joinUser').value), t=Number(this.dataset.team);
+   setTimeout(()=>{
+     const s=document.getElementById('joinStatus').textContent;
+     if(u && s.includes('เข้าทีม '+t+' ') && s.includes('ล็อกจนจบรอบ') && !giftMem[u]) giftMem[u]=t;
+   },0);
+ }));
+
+ const box=document.getElementById('giftTestBox'), st=document.getElementById('giftStatus');
+ document.getElementById('teamTestBtn').addEventListener('click',()=>box.style.display='block');
+ document.getElementById('closeTeams').addEventListener('click',()=>box.style.display='none');
+ document.getElementById('resetTeams').addEventListener('click',()=>{
+   Object.keys(giftMem).forEach(k=>delete giftMem[k]);
+   st.textContent='เริ่มรอบใหม่ — รายชื่อทีม Gift ถูกรีเซ็ตแล้ว';
+ });
+
+ function addGift(points){
+  const u=norm(document.getElementById('giftUsername').value);
+
+  if(!u){
+    st.textContent='⚠️ ใส่ username ก่อน';
+    return;
+  }
+
+  const team=giftMem[u];
+
+  if(!team){
+    st.textContent='⛔ '+u+' ยังไม่ได้เลือกทีม — Gift ไม่นับ';
+    return;
+  }
+
+  if(typeof window.NovaRiftAddGiftScore!=='function'){
+    st.textContent='⚠️ ระบบคะแนน Gift ยังไม่พร้อม';
+    return;
+  }
+
+  const ok=window.NovaRiftAddGiftScore(team,points);
+
+  if(!ok){
+    st.textContent='⚠️ ระบบกำลังเล่นเอฟเฟกต์ — ลองใหม่';
+    return;
+  }
+
+  st.textContent='🎁 '+u+' +'+points+' → ทีม '+team+' '+names[team];
+}
+ document.querySelectorAll('.giftBtn').forEach(b=>b.addEventListener('click',()=>addGift(Number(b.dataset.points))));
+})();
+</script>
+
+
+<!-- V0.5 ROUND SYSTEM TEST -->
+<style>
+#roundBox{position:absolute;top:2%;left:50%;transform:translateX(-50%);z-index:240;background:#050914ef;border:1px solid #ffffff35;border-radius:15px;padding:9px 12px;color:#fff;text-align:center;min-width:210px}
+#roundTimer{font-size:30px;font-weight:1000;letter-spacing:2px}
+#roundState{font-size:11px;opacity:.8;margin-bottom:5px}
+#roundBtns{display:flex;gap:6px;justify-content:center}
+.rbtn{border:1px solid #ffffff35;border-radius:9px;background:#ffffff12;color:#fff;padding:6px 9px;font-weight:900;cursor:pointer}
+#roundWinner{position:absolute;inset:0;z-index:500;background:#02040beF;color:#fff;display:none;align-items:center;justify-content:center;text-align:center;padding:20px}
+#roundWinner .card{max-width:430px;width:90%;border:1px solid #ffd86b77;border-radius:22px;background:#0b1020f5;padding:24px;box-shadow:0 0 50px #000}
+#roundWinner h1{font-size:27px;margin:4px 0 10px}
+#finalRanks{font-size:14px;line-height:1.8;margin:12px 0}
+</style>
+
+<div id="roundBox">
+ <div id="roundState">ROUND TEST — พร้อมเริ่ม</div>
+ <div id="roundTimer">03:00</div>
+ <div id="roundBtns">
+   <button class="rbtn" id="startRound">▶ START</button>
+   <button class="rbtn" id="endRound">■ END TEST</button>
+ </div>
+</div>
+<div id="roundWinner">
+ <div class="card">
+  <div style="font-size:13px;opacity:.7">🏆 ROUND FINISHED</div>
+  <h1 id="winnerName">WINNER</h1>
+  <div id="finalRanks"></div>
+  <button class="rbtn" id="nextRound">NEXT ROUND ↻</button>
+ </div>
+</div>
+
+<script>
+(function(){
+ let remain=180, timer=null, running=false, finished=false;
+ const tm=document.getElementById('roundTimer'), state=document.getElementById('roundState');
+ const overlay=document.getElementById('roundWinner'), win=document.getElementById('winnerName'), ranks=document.getElementById('finalRanks');
+
+ function fmt(){let m=Math.floor(remain/60),s=remain%60;tm.textContent=String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');}
+ function getRanks(){
+   return [...document.querySelectorAll('#teamRows .teamrow')].map(r=>{
+     const txt=r.textContent, p=(txt.match(/P([1-5])/)||[])[1], score=(txt.match(/(\d[\d,]*)\s*❤️?\s*\+1/)||[])[1];
+     const scoreEl=r.querySelector('.score');
+     return {p:Number(p),name:(r.querySelector('.teamname')?.textContent||'').replace(/P[1-5]/,'').trim(),score:Number((scoreEl?.textContent||'0').replace(/,/g,''))};
+   }).sort((a,b)=>b.score-a.score||a.p-b.p);
+ }
+ function lockInputs(on){
+   document.querySelectorAll('.likeBtn,.giftBtn,#sendUserLike,.joinNum').forEach(b=>{b.disabled=on;b.style.opacity=on?'.4':'1';});
+ }
+ function playWinner(p){
+   const btn=document.getElementById(p===1?'test':('testP'+p)); if(btn) setTimeout(()=>btn.click(),350);
+ }
+ function finish(){
+   if(finished)return; finished=true; running=false; clearInterval(timer); timer=null; lockInputs(true);
+   const rs=getRanks(), top=rs[0];
+   state.textContent='จบรอบ — ล็อกคะแนนแล้ว';
+   win.textContent='🏆 '+(top?.name||'TEAM P1');
+   ranks.innerHTML=rs.map((x,i)=>'#'+(i+1)+' — '+x.name+' — '+x.score.toLocaleString()+' pts').join('<br>');
+   overlay.style.display='flex'; if(top)playWinner(top.p);
+ }
+ document.getElementById('startRound').onclick=()=>{
+   if(running||finished)return; running=true; state.textContent='⚔️ ROUND กำลังแข่งขัน'; lockInputs(false);
+   timer=setInterval(()=>{remain--;fmt();if(remain<=0)finish();},1000);
+ };
+ document.getElementById('endRound').onclick=finish;
+ document.getElementById('nextRound').onclick=()=>{
+   // Reuse approved reset: clears scores and unlocks team choices for a new round.
+   document.getElementById('resetTeams').click();
+    resetP1RoundStats();
+   remain=180; running=false; finished=false; clearInterval(timer);timer=null;fmt();lockInputs(false);
+   state.textContent='ROUND ใหม่ — เลือกทีมได้ใหม่';overlay.style.display='none';
+ };
+ fmt();
+})();
+</script>
+
+
+<!-- V0.6 MEMBER + MVP TEST -->
+<style>
+#v6box{position:absolute;right:3%;top:32%;;z-index:260;width:230px;background:#050914ef;border:1px solid #ffffff35;border-radius:15px;padding:9px;color:#fff;display:none}
+#v6box h3{margin:0 0 6px;text-align:center;font-size:14px}.v6team{font-size:11px;padding:4px 5px;border-bottom:1px solid #ffffff18}
+#joinToast{position:absolute;left:50%;top:24%;transform:translate(-50%,-50%) scale(.85);z-index:600;background:#0a1020f5;border:1px solid #ffd86b88;border-radius:18px;padding:14px 22px;color:#fff;font-weight:1000;text-align:center;opacity:0;pointer-events:none;transition:.25s}
+#joinToast.show{opacity:1;transform:translate(-50%,-50%) scale(1)}
+#mvpPanel{position:absolute;left:50%;bottom:8%;transform:translateX(-50%);z-index:610;background:#090d18f5;border:1px solid #ffd86b77;border-radius:17px;padding:11px 18px;color:#fff;text-align:center;display:none;min-width:260px}
+#mvpPanel .mvpname{font-size:19px;font-weight:1000;color:#ffe27a}
+#v6box{pointer-events:none;}
+</style>
+<div id="v6box"><h3>👥 TEAM MEMBERS</h3><div id="v6members"></div></div>
+<div id="joinToast"></div>
+<div id="mvpPanel"><div>⭐ MVP — ทีมแชมป์</div><div class="mvpname" id="mvpName">-</div><div id="mvpStats"></div></div>
+
+<script>
+(function(){
+ const players={}, teamNames={1:'มังกรทอง',2:'จักรพรรดิเหมันต์',3:'มังกรเพลิง',4:'หมาป่าจันทรา',5:'กิเลนหยก'};
+ window.NovaRiftPlayers = players;
+ function norm(u){u=(u||'').trim().toLowerCase();return u&&!u.startsWith('@')?'@'+u:u;}
+ function render(){
+  const c={1:0,2:0,3:0,4:0,5:0};Object.values(players).forEach(x=>c[x.team]++);
+  document.getElementById('v6members').innerHTML=[1,2,3,4,5].map(t=>'<div class="v6team">P'+t+' '+teamNames[t]+' — <b>'+c[t]+' คน</b></div>').join('');
+ }
+ function toast(s){const x=document.getElementById('joinToast');x.textContent=s;x.classList.add('show');setTimeout(()=>x.classList.remove('show'),1800);}
+ document.getElementById('teamTestBtn').addEventListener('click',()=>{document.getElementById('v6box').style.display='block';render();});
+ document.getElementById('closeTeams').addEventListener('click',()=>document.getElementById('v6box').style.display='none');
+
+ document.querySelectorAll('.joinNum').forEach(b=>b.addEventListener('click',function(){
+   const u=norm(document.getElementById('joinUser').value),t=Number(this.dataset.team);
+   setTimeout(()=>{const s=document.getElementById('joinStatus').textContent;
+    if(u&&s.includes('เข้าทีม '+t+' ')&&s.includes('ล็อกจนจบรอบ')&&!players[u]){
+      players[u]={team:t,likes:0,gift:0};toast('⚔️ '+u+' JOINED — '+teamNames[t]);render();
+    }
+   },0);
+ }));
+
+ document.getElementById('sendUserLike').addEventListener('click',()=>{
+   const u=norm(document.getElementById('likeUsername').value);
+   setTimeout(()=>{if(players[u] && document.getElementById('likeUserStatus').textContent.includes('❤️ '+u+' +1'))players[u].likes++;},0);
+ });
+ document.querySelectorAll('.giftBtn').forEach(b=>b.addEventListener('click',function(){
+   const u=norm(document.getElementById('giftUsername').value),pts=Number(this.dataset.points);
+   setTimeout(()=>{if(players[u] && document.getElementById('giftStatus').textContent.includes('🎁 '+u+' +'+pts))players[u].gift+=pts;},0);
+ }));
+
+ function championTeam(){
+   const rows=[...document.querySelectorAll('#teamRows .teamrow')];
+   if(!rows.length)return 1;
+   const p=(rows[0].textContent.match(/P([1-5])/)||[])[1];return Number(p)||1;
+ }
+ function showMVP(){
+   const ct=championTeam(), arr=Object.entries(players).filter(([u,x])=>x.team===ct).map(([u,x])=>{
+     // Balanced MVP: participation from Likes plus capped Gift contribution.
+     const giftPower=Math.min(x.gift,200);
+     return {u,...x,mvp:x.likes+giftPower};
+   }).sort((a,b)=>b.mvp-a.mvp||b.likes-a.likes||a.u.localeCompare(b.u));
+   const m=arr[0], panel=document.getElementById('mvpPanel');
+   if(!m){panel.style.display='none';return;}
+   document.getElementById('mvpName').textContent=m.u;
+   document.getElementById('mvpStats').textContent='❤️ Support '+m.likes+'  •  🎁 Power '+m.gift+'  •  MVP '+m.mvp;
+   panel.style.display='block';
+ }
+ document.getElementById('endRound').addEventListener('click',()=>setTimeout(showMVP,120));
+ const obs=new MutationObserver(()=>{if(document.getElementById('roundWinner').style.display==='flex')setTimeout(showMVP,120);});
+ obs.observe(document.getElementById('roundWinner'),{attributes:true,attributeFilter:['style']});
+
+ document.getElementById('nextRound').addEventListener('click',()=>{
+   Object.keys(players).forEach(k=>delete players[k]);render();document.getElementById('mvpPanel').style.display='none';
+ });
+ render();
+})();
+</script>
+
+
+<!-- V0.7A EVENT SIMULATOR -->
+<style>
+#eventSim{position:absolute;left:3%;right:3%;bottom:2%;z-index:700;background:#030711f7;border:1px solid #4fe1ff66;border-radius:16px;padding:10px;color:#fff;display:none}
+#eventSim .et{font-weight:1000;text-align:center;margin-bottom:7px}
+#eventSim .eline{display:flex;gap:6px;justify-content:center;flex-wrap:wrap}
+#evUser,#evValue{border-radius:9px;border:1px solid #ffffff35;background:#ffffff12;color:#fff;padding:8px}
+#evUser{width:130px}#evValue{width:90px}
+.evbtn{border:1px solid #ffffff35;border-radius:10px;background:#ffffff12;color:#fff;padding:8px 10px;font-weight:900;cursor:pointer}
+#evStatus{text-align:center;margin-top:7px;font-size:12px;font-weight:900;min-height:18px}
+</style>
+<div id="eventSim">
+ <div class="et">🔌 V0.7A — TikTok Event Simulator</div>
+ <div class="eline">
+  <input id="evUser" placeholder="@username">
+  <input id="evValue" placeholder="1-5 / gift">
+  <button class="evbtn" id="evComment">💬 COMMENT</button>
+  <button class="evbtn" id="evLike">❤️ LIKE</button>
+  <button class="evbtn" id="evGift10">🎁 +10</button>
+  <button class="evbtn" id="evGift50">🎁 +50</button>
+  <button class="evbtn" id="evGift200">🎁 +200</button>
+ </div>
+ <div id="evStatus">จำลอง event ที่ภายหลังจะถูกแทนด้วยข้อมูล TikTok LIVE จริง</div>
+</div>
+<script>
+(function(){
+ function norm(u){u=(u||'').trim().toLowerCase();return u&&!u.startsWith('@')?'@'+u:u;}
+ const sim=document.getElementById('eventSim'), st=document.getElementById('evStatus');
+ document.getElementById('teamTestBtn').addEventListener('click',()=>sim.style.display='block');
+ document.getElementById('closeTeams').addEventListener('click',()=>sim.style.display='none');
+
+ function commentEvent(){
+  const u=norm(document.getElementById('evUser').value),v=document.getElementById('evValue').value.trim();
+  if(!u||!/^[1-5]$/.test(v)){st.textContent='⚠️ COMMENT ต้องมี username และเลขทีม 1–5';return;}
+  document.getElementById('joinUser').value=u;
+  const b=[...document.querySelectorAll('.joinNum')].find(x=>x.dataset.team===v);
+  if(b){b.click();setTimeout(()=>st.textContent='💬 EVENT comment: '+u+' → ทีม '+v,30);}
+ }
+ function likeEvent(){
+  const u=norm(document.getElementById('evUser').value);if(!u){st.textContent='⚠️ ใส่ username';return;}
+  const team = window.NovaRiftPlayers?.[u]?.team || 0;
+  if(!team){st.textContent='⚠️ username นี้ยังไม่ได้เลือกทีม';return;}
+  if(team===1){
+  p1Likes++;
+  p1RoundLikes++;
+  p1RoundActions++;
+  p1TotalActions++;
+  p1LastAction = 'like';
+  p1MvpPoints++;
+  p1RoundMvpPoints++;
+  p1Score++;
+  p1RoundScore++;
+  p1Combo++;
+  p1Streak++;
+  p1BestCombo = Math.max(p1BestCombo, p1Combo);
+  p1BestStreak = Math.max(p1BestStreak, p1Streak);
+  }
+  document.getElementById('likeUsername').value=u;document.getElementById('sendUserLike').click();
+  setTimeout(()=>st.textContent='❤️ EVENT like: '+u+' | '+document.getElementById('likeUserStatus').textContent,30);
+ }
+ function giftEvent(points){
+  const u=norm(document.getElementById('evUser').value);if(!u){st.textContent='⚠️ ใส่ username';return;}
+  const team = window.NovaRiftGiftMem?.[u] || window.NovaRiftPlayers?.[u]?.team || 0;
+if(!team){st.textContent='⚠️ username นี้ยังไม่ได้เลือกทีม';return;}
+if(team===1){
+  document.getElementById('giftUsername').value=u;
+  p1Gift += points;
+  p1RoundGift += points;
+  p1RoundActions++;
+  p1TotalActions++;
+  p1LastGift = points;
+  p1LastAction = 'gift';
+  p1RoundMvpPoints += points;
+  p1MvpPoints += points;
+  p1RoundScore += points;
+  p1Score += points;
+  p1LastActionAt = Date.now();
+  p1LastGiftAt = Date.now();
+  p1Shield = Math.min(p1ShieldMax, p1Shield + points);
+  p1Boost += points / 100;
+  p1Speed = p1SpeedBase + (points / 200);
+  p1Damage += Math.round(points * p1Boost);
+  p1Combo++;
+  p1Streak++;
+  p1BestCombo = Math.max(p1BestCombo, p1Combo);
+  p1BestStreak = Math.max(p1BestStreak, p1Streak);
+  p1BestScore = Math.max(p1BestScore, p1RoundScore);
+  p1IsMvp = p1RoundMvpPoints > 0;
+  p1Power += Math.max(1, Math.round(points / 10));
+  p1Exp += Math.max(1, Math.round(points / 5));
+  p1Level = Math.max(1, Math.floor(p1Exp / 100) + 1);
+  p1BestScore = Math.max(p1BestScore, p1Score);
+  p1IsChampion = false;
+  p1Wins = Math.max(0, p1Wins);
+  p1MvpRank = p1IsMvp ? 1 : 0;
+  p1GiftPower = Math.max(p1GiftPower || 0, points);
+  }
+  const b=[...document.querySelectorAll('.giftBtn')].find(x=>Number(x.dataset.points)===points);
+  if(b){b.click();setTimeout(()=>st.textContent='🎁 EVENT gift '+points+': '+u+' | '+document.getElementById('giftStatus').textContent,30);}
+ }
+ document.getElementById('evComment').onclick=commentEvent;
+ document.getElementById('evLike').onclick=likeEvent;
+ document.getElementById('evGift10').onclick=()=>giftEvent(10);
+ document.getElementById('evGift50').onclick=()=>giftEvent(50);
+ document.getElementById('evGift200').onclick=()=>giftEvent(200);
+
+ // Single future entry point: a real TikTok bridge can call window.NovaRiftEvent(event).
+ window.NovaRiftEvent=function(e){
+  if(!e||!e.type||!e.username)return false;
+  document.getElementById('evUser').value=e.username;
+  if(e.type==='comment'){document.getElementById('evValue').value=String(e.value||'');commentEvent();return true;}
+  if(e.type==='like'){likeEvent();return true;}
+  if(e.type==='gift'){giftEvent(Number(e.points)||10);return true;}
+  return false;
+ };
+})();
+</script>
+
+
+<!-- REVIEW DEMO V2 LAYOUT OVERRIDE: compact side controls, game logic unchanged -->
+<style>
+/* Keep the 9:16 game stage visually clear. */
+#reviewDemoBadge{
+  top:.8% !important;
+  font-size:10px !important;
+  padding:5px 10px !important;
+}
+
+/* Compact reviewer guide on the far right. */
+#reviewGuide{
+  position:fixed !important;
+  right:10px !important;
+  top:70px !important;
+  left:auto !important;
+  width:220px !important;
+  max-height:245px !important;
+  overflow:auto !important;
+  padding:8px !important;
+  font-size:10px !important;
+  line-height:1.3 !important;
+  z-index:840 !important;
+}
+
+/* Team chooser: compact card at upper-left, never full-width. */
+#joinTestBox{
+  position:fixed !important;
+  left:10px !important;
+  top:70px !important;
+  right:auto !important;
+  bottom:auto !important;
+  width:260px !important;
+  max-width:260px !important;
+  padding:8px !important;
+  z-index:830 !important;
+  display:block !important;
+  box-sizing:border-box !important;
+}
+#joinTestBox .title{font-size:11px !important;margin-bottom:5px !important}
+#joinTestBox .joinline{gap:4px !important;justify-content:flex-start !important}
+#joinUser{width:92px !important;padding:6px !important;font-size:10px !important}
+.joinNum{width:28px !important;padding:6px 0 !important;font-size:10px !important}
+#joinStatus,#memberSummary{font-size:9px !important;margin-top:4px !important}
+
+/* Main five-team ranking panel: hide during review recording.
+   The vertical game already shows the public-facing ranking. */
+#teamPanel{display:none !important}
+
+/* Gift + Like tools: small cards on left, below team chooser. */
+#giftTestBox{
+  position:fixed !important;
+  left:10px !important;
+  top:205px !important;
+  right:auto !important;
+  bottom:auto !important;
+  width:260px !important;
+  padding:7px !important;
+  z-index:829 !important;
+  box-sizing:border-box !important;
+}
+#giftTestBox .gt{font-size:10px !important;margin-bottom:4px !important}
+#giftTestBox .gl{gap:3px !important}
+#giftUsername{width:88px !important;padding:5px !important;font-size:9px !important}
+.giftBtn{padding:5px 6px !important;font-size:9px !important}
+#giftStatus{font-size:9px !important;margin-top:4px !important;min-height:14px !important}
+
+#likeUserBox{
+  position:fixed !important;
+  left:10px !important;
+  top:295px !important;
+  right:auto !important;
+  bottom:auto !important;
+  width:260px !important;
+  padding:7px !important;
+  z-index:828 !important;
+  box-sizing:border-box !important;
+}
+#likeUserBox .lt{font-size:10px !important;margin-bottom:4px !important}
+#likeUserBox .ll{gap:4px !important}
+#likeUsername{width:120px !important;padding:5px !important;font-size:9px !important}
+#sendUserLike{padding:5px 7px !important;font-size:9px !important}
+#likeUserStatus{font-size:9px !important;margin-top:4px !important;min-height:14px !important}
+
+/* Event simulator: compact and docked bottom-left. */
+#eventSim{
+  position:fixed !important;
+  left:10px !important;
+  bottom:10px !important;
+  right:auto !important;
+  top:auto !important;
+  width:360px !important;
+  max-width:360px !important;
+  padding:7px !important;
+  z-index:827 !important;
+  box-sizing:border-box !important;
+}
+#eventSim .et{font-size:10px !important;margin-bottom:4px !important}
+#eventSim .el{gap:3px !important}
+#evUser,#evValue{width:82px !important;padding:5px !important;font-size:9px !important}
+.evBtn{padding:5px 6px !important;font-size:9px !important}
+#evStatus{font-size:9px !important;margin-top:4px !important;min-height:14px !important}
+
+/* Member summary: compact card at upper-right under reviewer guide. */
+#memberBox{
+  position:fixed !important;
+  right:10px !important;
+  top:330px !important;
+  left:auto !important;
+  bottom:auto !important;
+  width:220px !important;
+  padding:7px !important;
+  z-index:826 !important;
+  box-sizing:border-box !important;
+  font-size:9px !important;
+}
+
+/* Round result overlays remain centered when they are actually needed. */
+</style>
+
+
+<!-- REVIEW DEMO V3 LAYOUT OVERRIDE
+     Goal: keep the center 9:16 battle stage completely clear. -->
+<style>
+/* LEFT COLUMN: Team -> Gift -> Like -> Event, all compact and stacked */
+#joinTestBox{
+  position:fixed !important; left:10px !important; top:70px !important;
+  right:auto !important; bottom:auto !important;
+  width:260px !important; max-width:260px !important;
+  padding:7px !important; box-sizing:border-box !important;
+  z-index:850 !important;
+}
+#giftTestBox{
+  position:fixed !important; left:10px !important; top:195px !important;
+  right:auto !important; bottom:auto !important;
+  width:260px !important; max-width:260px !important;
+  padding:7px !important; box-sizing:border-box !important;
+  z-index:849 !important; display:block !important;
+}
+#likeUserBox{
+  position:fixed !important; left:10px !important; top:285px !important;
+  right:auto !important; bottom:auto !important;
+  width:260px !important; max-width:260px !important;
+  padding:7px !important; box-sizing:border-box !important;
+  z-index:848 !important; display:block !important;
+}
+#eventSim{
+  position:fixed !important; left:10px !important; top:370px !important;
+  right:auto !important; bottom:auto !important;
+  width:260px !important; max-width:260px !important;
+  padding:7px !important; box-sizing:border-box !important;
+  z-index:847 !important;
+}
+
+/* Make Like as compact as Gift */
+#likeUserBox .lt{font-size:10px !important;margin-bottom:4px !important}
+#likeUserBox .ll{display:flex !important;gap:4px !important;justify-content:center !important;flex-wrap:nowrap !important}
+#likeUsername{width:115px !important;padding:5px !important;font-size:9px !important}
+#sendUserLike{padding:5px 7px !important;font-size:9px !important;white-space:nowrap !important}
+#likeUserStatus{font-size:9px !important;min-height:13px !important;margin-top:3px !important}
+
+/* Gift compact */
+#giftTestBox .gt{font-size:10px !important;margin-bottom:4px !important}
+#giftTestBox .gl{gap:3px !important;flex-wrap:wrap !important}
+#giftUsername{width:88px !important;padding:5px !important;font-size:9px !important}
+.giftBtn{padding:5px 6px !important;font-size:9px !important}
+#giftStatus{font-size:9px !important;min-height:13px !important;margin-top:3px !important}
+
+/* Event simulator compact */
+#eventSim .et{font-size:10px !important;margin-bottom:4px !important}
+#eventSim .el{gap:3px !important;flex-wrap:wrap !important}
+#evUser,#evValue{width:76px !important;padding:4px !important;font-size:9px !important}
+.evBtn{padding:4px 5px !important;font-size:9px !important}
+#evStatus{font-size:8px !important;min-height:12px !important;margin-top:3px !important}
+
+/* RIGHT COLUMN: Demo guide -> Team Members, stacked with no overlap */
+#reviewGuide{
+  position:fixed !important; right:10px !important; top:70px !important;
+  left:auto !important; bottom:auto !important;
+  width:220px !important; max-height:245px !important;
+  overflow:auto !important; padding:8px !important;
+  box-sizing:border-box !important; z-index:850 !important;
+}
+#memberBox{
+  position:fixed !important; right:10px !important; top:325px !important;
+  left:auto !important; bottom:auto !important;
+  width:220px !important; padding:7px !important;
+  box-sizing:border-box !important; z-index:849 !important;
+}
+
+/* Never let the old wide ranking/test panel cover the battle stage */
+#teamPanel{display:none !important}
+
+/* Center game remains unobstructed */
+</style>
+
+
+<!-- REVIEW DEMO V4: compact Like box + lower Team Members; logic unchanged -->
+<style>
+/* Like box: same compact footprint as Team Members, docked left */
+#likeUserBox{
+  position:fixed !important;
+  left:10px !important;
+  top:285px !important;
+  right:auto !important;
+  bottom:auto !important;
+  width:220px !important;
+  max-width:220px !important;
+  min-width:0 !important;
+  padding:7px !important;
+  box-sizing:border-box !important;
+  z-index:848 !important;
+  display:block !important;
+}
+#likeUserBox .lt{
+  font-size:9px !important;
+  margin-bottom:4px !important;
+  white-space:nowrap !important;
+}
+#likeUserBox .ll{
+  display:flex !important;
+  gap:3px !important;
+  justify-content:center !important;
+  flex-wrap:nowrap !important;
+}
+#likeUsername{
+  width:105px !important;
+  min-width:0 !important;
+  padding:4px !important;
+  font-size:8px !important;
+}
+#sendUserLike{
+  padding:4px 6px !important;
+  font-size:8px !important;
+  white-space:nowrap !important;
+}
+#likeUserStatus{
+  font-size:8px !important;
+  line-height:1.15 !important;
+  min-height:11px !important;
+  margin-top:3px !important;
+}
+
+/* Move Team Members lower, directly under Reviewer Demo Flow with extra breathing room */
+#memberBox{
+  position:fixed !important;
+  right:10px !important;
+  top:345px !important;
+  left:auto !important;
+  bottom:auto !important;
+  width:220px !important;
+  padding:7px !important;
+  box-sizing:border-box !important;
+  z-index:849 !important;
+}
+</style>
+
+
+<!-- REVIEW DEMO V5: right-side Reviewer -> Team Members -> Like stack; logic unchanged -->
+<style>
+/* Actual TEAM MEMBERS element */
+#v6box{
+  position:fixed !important;
+  right:10px !important;
+  top:355px !important;
+  left:auto !important;
+  bottom:auto !important;
+  width:220px !important;
+  max-width:220px !important;
+  padding:7px !important;
+  box-sizing:border-box !important;
+  z-index:849 !important;
+}
+#v6box h3{font-size:11px !important;margin:0 0 5px !important}
+#v6box .v6team{font-size:9px !important;padding:3px 4px !important}
+
+/* Actual TEST Like element: same width/style footprint as TEAM MEMBERS */
+#likeUserTest{
+  position:fixed !important;
+  right:10px !important;
+  top:475px !important;
+  left:auto !important;
+  bottom:auto !important;
+  width:220px !important;
+  max-width:220px !important;
+  min-width:0 !important;
+  padding:7px !important;
+  box-sizing:border-box !important;
+  z-index:848 !important;
+}
+#likeUserTest .ttl{
+  font-size:9px !important;
+  margin-bottom:4px !important;
+  white-space:nowrap !important;
+}
+#likeUserTest .line{
+  display:flex !important;
+  gap:3px !important;
+  justify-content:center !important;
+  flex-wrap:nowrap !important;
+}
+#likeUserTest #likeUsername{
+  width:105px !important;
+  min-width:0 !important;
+  padding:4px !important;
+  font-size:8px !important;
+}
+#likeUserTest #sendUserLike{
+  padding:4px 6px !important;
+  font-size:8px !important;
+  white-space:nowrap !important;
+}
+#likeUserTest #likeUserStatus{
+  font-size:8px !important;
+  line-height:1.15 !important;
+  min-height:11px !important;
+  margin-top:3px !important;
+}
+</style>
+</body></html>
